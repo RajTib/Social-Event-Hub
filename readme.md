@@ -58,15 +58,14 @@ AI Powered Social Event Hub/<br>
 
 ---
 
-### ⚡ Quick Setup
+## ⚡ Quick Setup
 
-## Backend
+### Backend
 cd backend
 <br>
 python -m venv venv
 
-## Activate venv
-# Windows PowerShell:
+### Activate venv
 .\venv\Scripts\Activate.ps1
 
 pip install -r requirements.txt
