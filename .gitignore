@@ -1,15 +1,13 @@
 # Python
-venv/
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+venv/
+.venv/
 
 # Node
 node_modules/
-dist/
-build/
 
-# Env
-.env
-
-# OS
-.DS_Store
+# Local DB
+backend/instance/data.db
