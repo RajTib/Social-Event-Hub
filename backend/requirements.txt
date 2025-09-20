@@ -1,0 +1,6 @@
+Flask==2.2.5
+Flask_SQLAlchemy==3.0.3
+Flask-Cors==3.0.10
+openai==0.27.0
+folium==0.14.0
+python-dotenv==1.0.0
