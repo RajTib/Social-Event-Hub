@@ -4,7 +4,7 @@
 - **Raj Tibarewala**
 - **Vaidehi Goel**  
 - **Ammar Abdullah**  
-- **Harvee**  
+- **Harvee Jain**  
 
 ---
 
