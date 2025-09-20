@@ -41,19 +41,19 @@ We’re building an **AI-powered event hub** that:
 ---
 
 ## 📂 Repo Structure
-AI Powered Social Event Hub/
-├─ README.md
-├─ .gitignore
-├─ .env.example
-├─ backend/
-│ ├─ app.py
-│ └─ requirements.txt
-└─ frontend/
-├─ package.json
-├─ index.html
-└─ src/
-├─ main.jsx
-└─ App.jsx
+AI Powered Social Event Hub/<br>
+├─ README.md<br>
+├─ .gitignore<br>
+├─ .env.example<br>
+├─ backend/<br>
+│ ├─ app.py<br>
+│ └─ requirements.txt<br>
+└─ frontend/<br>
+├─ package.json<br>
+├─ index.html<br>
+└─ src/<br>
+├─ main.jsx<br>
+└─ App.jsx<br>
 
 
 ---
@@ -62,6 +62,7 @@ AI Powered Social Event Hub/
 
 ## Backend
 cd backend
+<br>
 python -m venv venv
 
 ## Activate venv
@@ -75,11 +76,14 @@ cp ../.env.example .env
 
 ### Run backend
 set FLASK_APP=app.py
+<br>
 flask run
 
 
 ## Frontend
 cd frontend
+<br>
 npm install
+<br>
 npm run dev
 
