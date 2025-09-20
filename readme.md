@@ -58,30 +58,27 @@ AI Powered Social Event Hub/
 
 ---
 
-## ⚡ Quick Setup
+### ⚡ Quick Setup
 
-### Backend
+## Backend
 cd backend
 python -m venv venv
 
-# activate venv
+## Activate venv
 # Windows PowerShell:
 .\venv\Scripts\Activate.ps1
-# Linux/Mac:
-source venv/bin/activate
 
 pip install -r requirements.txt
 
-# copy environment file (edit as needed)
+### Copy environment file (edit as needed)
 cp ../.env.example .env  
 
-# run backend
-set FLASK_APP=app.py      # Windows CMD
-
+### Run backend
+set FLASK_APP=app.py
 flask run
 
 
-### Frontend
+## Frontend
 cd frontend
 npm install
 npm run dev
