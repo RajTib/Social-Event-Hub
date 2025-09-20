@@ -1,10 +1,10 @@
 # AI-Powered Social Event Hub — DevJams '25
 
 ## 🚀 Team Members
-- **Raj Tibarewala** – Backend & AI Integration  
-- **Vaidehi Goel** – Frontend + UI/UX  
-- **Ammar Abdullah** – Database & API Integration  
-- **Harvee** – Demo Flow & Testing  
+- **Raj Tibarewala**
+- **Vaidehi Goel**  
+- **Ammar Abdullah**  
+- **Harvee**  
 
 ---
 
