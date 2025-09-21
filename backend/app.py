@@ -7,9 +7,12 @@
 #   - Preferences & Quiz
 #   - Icebreakers (AI powered)
 #   - Location + Folium Map
+#   - SERPAPI Event Fetching
 # ==========================================
 
 import os
+import re
+import ast
 from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -19,6 +22,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import openai
 import folium
+from serpapi import GoogleSearch
 
 # ==========================================
 # CONFIG
@@ -46,7 +50,7 @@ class User(db.Model):
     """User profile & login"""
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(128), nullable=False)
+    password_hash = db.Column(db.String(128), nullable=True)
 
     # Profile info
     name = db.Column(db.String(100))
@@ -55,43 +59,49 @@ class User(db.Model):
     dob = db.Column(db.String(20))
     bio = db.Column(db.Text)
     social_links = db.Column(db.Text)
+    city = db.Column(db.String(100))
+    interests = db.Column(db.Text)
 
     # Location & profile image
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
     profile_image = db.Column(db.String(200))
 
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
 
     def check_password(self, password):
+        if not self.password_hash:
+            return False
         return check_password_hash(self.password_hash, password)
-
 
 class Event(db.Model):
     """Event info"""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    location_name = db.Column(db.String(200))
+    event_time = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
     category = db.Column(db.String(100))
     popularity = db.Column(db.Integer, default=0)
-
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"))
 
 class Interested(db.Model):
     """User marked interest in event"""
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey("event.id"))
-    user_id = db.Column(db.Integer)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
-
 
 class UserPreferences(db.Model):
     """User category preferences"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
     category = db.Column(db.String(100))
-
 
 class UserQuizAnswer(db.Model):
     """Quiz answers per user"""
@@ -101,8 +111,21 @@ class UserQuizAnswer(db.Model):
     answer = db.Column(db.String(200))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+class UserEventLog(db.Model):
+    """User event logs"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer)
+    event_id = db.Column(db.Integer)
+    action = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Icebreaker(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100))
+
 # ==========================================
-# DATABASE INIT (seed sample events)
+# DATABASE INIT (sample events)
 # ==========================================
 with app.app_context():
     db.create_all()
@@ -121,13 +144,14 @@ with app.app_context():
 # MOOD MAP
 # ==========================================
 MOOD_MAP = {
-    "calm": ["art", "meetup"],
+    "calm": ["art", "meetup", "date"],
     "energetic": ["music", "workshop"],
     "anxious": ["meetup", "workshop"],
+    "social": ["meetup", "workshop", "comedy", "date"]
 }
 
 # ==========================================
-# AUTH
+# AUTH ROUTES
 # ==========================================
 @app.route("/api/register", methods=["POST"])
 def register():
@@ -143,9 +167,7 @@ def register():
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
-
     return jsonify({"status": "success", "user_id": user.id})
-
 
 @app.route("/api/login", methods=["POST"])
 def login():
@@ -178,9 +200,10 @@ def get_user(user_id):
         "social_links": user.social_links,
         "lat": user.lat,
         "lon": user.lon,
+        "city": user.city,
+        "interests": user.interests,
         "profile_image": user.profile_image,
     })
-
 
 @app.route("/api/user/update", methods=["PATCH"])
 def update_user():
@@ -189,13 +212,11 @@ def update_user():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    for field in ["name", "age", "gender", "dob", "bio", "social_links", "lat", "lon"]:
+    for field in ["name","age","gender","dob","bio","social_links","lat","lon","city","interests"]:
         if field in data:
             setattr(user, field, data[field])
-
     db.session.commit()
     return jsonify({"status": "success"})
-
 
 @app.route("/api/profile/upload", methods=["POST"])
 def upload_profile_image():
@@ -224,7 +245,6 @@ def upload_profile_image():
 def save_preferences():
     data = request.json or {}
     user_id, categories = data.get("user_id"), data.get("categories", [])
-
     UserPreferences.query.filter_by(user_id=user_id).delete()
     db.session.bulk_insert_mappings(
         UserPreferences, [{"user_id": user_id, "category": c} for c in categories]
@@ -242,13 +262,17 @@ def get_events():
         events = Event.query.filter(Event.category.in_(MOOD_MAP[mood])).all()
     else:
         events = Event.query.all()
-
-    return jsonify([
-        {"id": e.id, "title": e.title, "lat": e.lat, "lon": e.lon,
-         "category": e.category, "popularity": e.popularity}
-        for e in events
-    ])
-
+    return jsonify([{
+        "id": e.id,
+        "title": e.title,
+        "description": getattr(e, "description", ""),
+        "location_name": getattr(e, "location_name", ""),
+        "event_time": getattr(e, "event_time", ""),
+        "lat": e.lat,
+        "lon": e.lon,
+        "category": e.category,
+        "popularity": e.popularity
+    } for e in events])
 
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
@@ -262,9 +286,37 @@ def mark_interested():
     if event:
         event.popularity = (event.popularity or 0) + 1
 
-    db.session.add(rec)
+    log = UserEventLog(user_id=user_id, event_id=event_id, action="clicked_interested")
+    db.session.add_all([rec, log])
     db.session.commit()
     return jsonify({"ok": True})
+
+# ==========================================
+# QUIZ
+# ==========================================
+@app.route("/api/quiz/questions")
+def get_quiz_questions():
+    return jsonify([
+        {"id": 1, "question": "Pick your vibe today", "options": ["Calm", "Energetic", "Anxious"]},
+        {"id": 2, "question": "Choose a music genre you like", "options": ["Lo-fi", "Indie", "Electronic", "Classical"]},
+        {"id": 3, "question": "Do you prefer small meetups or big events?", "options": ["Small", "Big"]},
+        {"id": 4, "question": "Favorite time of day to hang out?", "options": ["Morning", "Afternoon", "Night"]},
+    ])
+
+@app.route("/api/quiz/answer", methods=["POST"])
+def submit_quiz_answer():
+    data = request.json or {}
+    user_id, question, answer = data.get("user_id"), data.get("question"), data.get("answer")
+    if not user_id or not question or not answer:
+        return jsonify({"error": "Missing fields"}), 400
+
+    db.session.add(UserQuizAnswer(user_id=user_id, question=question, answer=answer))
+    db.session.commit()
+    return jsonify({"status": "success"})
+
+@app.route("/api/quiz/done", methods=["POST"])
+def quiz_done():
+    return jsonify({"status": "finished"})
 
 # ==========================================
 # ICEBREAKER (AI)
@@ -315,44 +367,100 @@ def folium_map():
     return m._repr_html_()
 
 # ==========================================
-# QUIZ
+# SERPAPI INTEGRATION
 # ==========================================
-@app.route("/api/quiz/questions")
-def get_quiz_questions():
-    return jsonify([
-        {"id": 1, "question": "Pick your vibe today", "options": ["Calm", "Energetic", "Anxious"]},
-        {"id": 2, "question": "Choose a music genre you like", "options": ["Lo-fi", "Indie", "Electronic", "Classical"]},
-        {"id": 3, "question": "Do you prefer small meetups or big events?", "options": ["Small", "Big"]},
-        {"id": 4, "question": "Favorite time of day to hang out?", "options": ["Morning", "Afternoon", "Night"]},
-    ])
+def map_event_category(serpapi_type: str, title: str) -> str:
+    serpapi_type = (serpapi_type or "").lower()
+    title = (title or "").lower()
+    if any(k in serpapi_type for k in ["concert", "music", "gig"]) or "music" in title:
+        return "music"
+    elif any(k in serpapi_type for k in ["art", "exhibition", "gallery"]) or "art" in title:
+        return "art"
+    elif any(k in serpapi_type for k in ["workshop", "class", "training"]) or "workshop" in title:
+        return "workshop"
+    elif any(k in serpapi_type for k in ["meetup", "network", "community"]) or "meetup" in title:
+        return "meetup"
+    elif any(k in serpapi_type for k in ["sports", "game", "tournament"]) or "sports" in title:
+        return "sports"
+    elif "date" in serpapi_type or "date" in title:
+        return "date"
+    elif "comedy" in serpapi_type or "comedy" in title:
+        return "comedy"
+    else:
+        return "general"
 
+def fetch_serpapi_events(location="Bangalore", num_events=20):
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if not serpapi_key:
+        print("❌ No SERPAPI_API_KEY set in .env")
+        return
 
-@app.route("/api/quiz/answer", methods=["POST"])
-def submit_quiz_answer():
-    data = request.json or {}
-    user_id, question, answer = data.get("user_id"), data.get("question"), data.get("answer")
+    params = {
+        "engine": "google_events",
+        "q": "events",
+        "location": location,
+        "hl": "en",
+        "api_key": serpapi_key
+    }
 
-    if not user_id or not question or not answer:
-        return jsonify({"error": "Missing fields"}), 400
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    events = results.get("events_results", [])
 
-    db.session.add(UserQuizAnswer(user_id=user_id, question=question, answer=answer))
+    added_count = 0
+    for ev in events[:num_events]:
+        title = ev.get("title") or "Untitled Event"
+        description = ev.get("description") or ev.get("snippet") or "No description"
+        loc_data = ev.get("location") or {}
+        location_name = loc_data.get("name") or ev.get("location_name") or "Unknown Venue"
+        lat = float(loc_data.get("latitude") or ev.get("latitude") or 12.97)
+        lon = float(loc_data.get("longitude") or ev.get("longitude") or 77.59)
+        dates_str = ev.get("dates")
+        event_time = ""
+        if dates_str:
+            dates_str = re.search(r"\{.*\}", dates_str)
+            if dates_str:
+                try:
+                    dates_dict = ast.literal_eval(dates_str.group())
+                    event_time = dates_dict.get("when", "")
+                except:
+                    event_time = ""
+        category = map_event_category(ev.get("type"), title)
+        exists = Event.query.filter_by(title=title, lat=lat, lon=lon).first()
+        if not exists:
+            db.session.add(Event(
+                title=title,
+                description=description,
+                location_name=location_name,
+                lat=lat,
+                lon=lon,
+                category=category,
+                event_time=event_time
+            ))
+            added_count += 1
+        else:
+            if exists.category == "general" and category != "general":
+                exists.category = category
+            if not exists.event_time and event_time:
+                exists.event_time = event_time
+            if not exists.location_name or exists.location_name == "Unknown Venue":
+                exists.location_name = location_name
+            if not exists.lat or not exists.lon:
+                exists.lat = lat
+                exists.lon = lon
+
     db.session.commit()
-    return jsonify({"status": "success"})
-
-
-@app.route("/api/quiz/done", methods=["POST"])
-def quiz_done():
-    return jsonify({"status": "finished"})
-
-# ==========================================
-# ROOT
-# ==========================================
-@app.route("/")
-def home():
-    return "<h1>🚀 Backend Running!</h1>"
+    print(f"✅ Stored {added_count} new events from SerpApi (total events: {Event.query.count()})")
 
 # ==========================================
 # MAIN
 # ==========================================
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        try:
+            fetch_serpapi_events(location="Bangalore", num_events=20)
+        except Exception as e:
+            print("SerpApi fetch failed:", e)
+
     app.run(debug=True, host="0.0.0.0", port=5000)
