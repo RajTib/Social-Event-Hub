@@ -1,0 +1,5 @@
+.password-field {
+  -webkit-text-security: disc;
+  text-security: disc;
+  -moz-text-security: disc;
+}

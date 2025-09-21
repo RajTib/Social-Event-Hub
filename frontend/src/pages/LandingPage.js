@@ -42,7 +42,8 @@ const LandingPage = ({ setIsLoggedIn }) => {
           </p>
         </div>
 
-        <div className="w-full md:w-1/2 flex items-center justify-center">
+        {/* This div now has the lilac gradient background */}
+        <div className="w-full md:w-1/2 flex items-center justify-center rounded-lg shadow-xl p-8 bg-gradient-to-br from-lilac-start to-lilac-end text-white">
           {showForm === 'login' ? (
             <LoginForm 
               onLogin={handleLoginSuccess}
@@ -54,7 +55,7 @@ const LandingPage = ({ setIsLoggedIn }) => {
               onSwitchToLogin={() => setShowForm('login')}
             />
           ) : (
-            <div className="p-8 bg-white rounded-lg shadow-xl text-center">
+            <div className="text-center">
               <h2 className="text-2xl font-semibold mb-4 text-gray-800">Ready to find your tribe?</h2>
               <p className="text-gray-600 mb-6">Join MoodMeet today and start your journey to better connections.</p>
               <button 
