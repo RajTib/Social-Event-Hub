@@ -39,9 +39,11 @@ const EventCard = ({ event }) => {
           event.category === 'art' ? 'bg-indigo-100 text-indigo-800' :
           event.category === 'music' ? 'bg-green-100 text-green-800' :
           event.category === 'meetup' ? 'bg-purple-100 text-purple-800' :
+          event.category === 'workshop' ? 'bg-yellow-100 text-yellow-800' :
+          event.category === 'date' ? 'bg-pink-100 text-pink-800' :
           'bg-gray-100 text-gray-800'
         }`}>
-          {event.category}
+          {event.category || "general"}
         </span>
         <span className="text-gray-500">{event.matchPercentage || Math.floor(Math.random() * 100)}% match</span>
       </div>
@@ -49,9 +51,9 @@ const EventCard = ({ event }) => {
       <h3 className="text-xl font-semibold text-gray-800">{event.title}</h3>
 
       <div className="space-y-2 text-gray-600">
-        <div>Time: {event.time || "TBA"}</div>
-        <div>Location: {event.location || "Nearby"}</div>
-        <div>{peopleInterested} people interested</div>
+        <div><strong>Time:</strong> {event.event_time || "TBA"}</div>
+        <div><strong>Location:</strong> {event.location_name || "Nearby"}</div>
+        <div><strong>Interested:</strong> {peopleInterested} people</div>
       </div>
 
       <p className="text-gray-600 mt-2">{event.description || "No description available"}</p>

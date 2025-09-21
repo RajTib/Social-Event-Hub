@@ -39,6 +39,9 @@ class User(db.Model):
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
+    description = db.Column(db.Text)
+    location_name = db.Column(db.String(200))
+    event_time = db.Column(db.String(100))
     lat = db.Column(db.Float)
     lon = db.Column(db.Float)
     category = db.Column(db.String(100))
@@ -64,12 +67,12 @@ class UserEventLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # =========================
-# Mood -> Category mapping
+# MOOD -> CATEGORY MAP
 # =========================
 MOOD_MAP = {
-    "calm": ["art","meetup","date"],
-    "energetic": ["music","workshop"],
-    "social": ["meetup","workshop","comedy","date"]
+    "calm": ["art", "meetup", "date"],
+    "energetic": ["music", "workshop"],
+    "social": ["meetup", "workshop", "comedy", "date"]
 }
 
 # =========================
@@ -85,21 +88,19 @@ def get_events():
     mood = (request.args.get('mood') or "").lower()
 
     if mood and mood in MOOD_MAP:
-        # Mood selected → only show events in that mood's categories
         cats = [c.lower() for c in MOOD_MAP[mood]]
         events = Event.query.filter(db.func.lower(Event.category).in_(cats)).all()
     else:
-        # No mood selected → show all events (general + mood-specific)
         events = Event.query.all()
-
-    # Debug: print fetched events
-    print("Fetched events for /api/events:", [(e.title, e.category) for e in events])
 
     out = []
     for e in events:
         out.append({
             "id": e.id,
             "title": e.title,
+            "description": e.description,
+            "location_name": e.location_name,
+            "event_time": e.event_time,
             "lat": e.lat,
             "lon": e.lon,
             "category": e.category,
@@ -123,14 +124,13 @@ def add_user():
     db.session.commit()
     return jsonify({"ok": True, "user_id": user.id})
 
-# -------------------------
-# GET ICEBREAKERS BY CATEGORY
-# -------------------------
+# ---------- ICEBREAKERS ----------
 @app.route("/api/icebreakers/all", methods=["GET"])
 def get_all_icebreakers():
-    icebreakers = Icebreaker.query.all()  # fetch all from table
+    icebreakers = Icebreaker.query.all()
     questions = [ib.question for ib in icebreakers]
     return jsonify({"icebreakers": questions})
+
 @app.route("/api/icebreakers", methods=["POST"])
 def add_icebreaker():
     data = request.json or {}
@@ -142,7 +142,6 @@ def add_icebreaker():
     db.session.add(ib)
     db.session.commit()
     return jsonify({"ok": True, "id": ib.id})
-
 
 # ---------- USER QUIZ ----------
 @app.route("/api/users/quiz", methods=["POST"])
@@ -184,7 +183,7 @@ def mark_interested():
     db.session.commit()
     return jsonify({"ok": True})
 
-# ---------- ICEBREAKERS ----------
+# ---------- ICEBREAKERS AI ----------
 @app.route("/api/icebreaker", methods=["POST"])
 def icebreaker():
     data = request.json or {}
@@ -211,22 +210,15 @@ def icebreaker():
 # ---------- MAP ----------
 @app.route("/map")
 def folium_map():
-    # Get mood filter from query params
     mood = (request.args.get("mood") or "").lower()
-
     if mood and mood in MOOD_MAP:
-        # Show only events for the selected mood
         cats = MOOD_MAP[mood]
         events = Event.query.filter(Event.category.in_(cats)).all()
     else:
-        # No mood → show all events including general + mood-specific
         events = Event.query.all()
 
-    # Default map center
     start_loc = [12.97, 77.59]
     m = folium.Map(location=start_loc, zoom_start=12)
-
-    # Add all events to the map
     for e in events:
         folium.CircleMarker(
             location=[e.lat, e.lon],
@@ -237,22 +229,14 @@ def folium_map():
             fill_color='blue' if e.category == 'general' else 'green',
             fill_opacity=0.7
         ).add_to(m)
-
     return m._repr_html_()
 
 # =========================
 # SERPAPI INTEGRATION
 # =========================
-# =========================
-# SERPAPI INTEGRATION
-# =========================
 def map_event_category(serpapi_type: str, title: str) -> str:
-    """
-    Map SerpAPI events to backend categories based on type or title.
-    """
     serpapi_type = (serpapi_type or "").lower()
     title = (title or "").lower()
-
     if any(k in serpapi_type for k in ["concert", "music", "gig"]) or "music" in title:
         return "music"
     elif any(k in serpapi_type for k in ["art", "exhibition", "gallery"]) or "art" in title:
@@ -263,20 +247,17 @@ def map_event_category(serpapi_type: str, title: str) -> str:
         return "meetup"
     elif any(k in serpapi_type for k in ["sports", "game", "tournament"]) or "sports" in title:
         return "sports"
-    elif any(k in serpapi_type for k in ["date"]) or "date" in title:
+    elif "date" in serpapi_type or "date" in title:
         return "date"
-    elif any(k in serpapi_type for k in ["comedy"]) or "comedy" in title:
+    elif "comedy" in serpapi_type or "comedy" in title:
         return "comedy"
     else:
         return "general"
 
 def fetch_serpapi_events(location="Bangalore", num_events=20):
-    """
-    Fetch events from SerpAPI and store them in the database with proper categories.
-    """
     serpapi_key = os.getenv("SERPAPI_API_KEY")
     if not serpapi_key:
-        print("No SERPAPI_API_KEY set in .env")
+        print("❌ No SERPAPI_API_KEY set in .env")
         return
 
     params = {
@@ -295,30 +276,62 @@ def fetch_serpapi_events(location="Bangalore", num_events=20):
 
     for ev in events[:num_events]:
         title = ev.get("title") or "Untitled Event"
-        lat = ev.get("latitude") or 12.97
-        lon = ev.get("longitude") or 77.59
-        serp_type = ev.get("type") or ""
+        description = ev.get("description") or ev.get("snippet") or "No description"
 
-        # Map category properly
+        # Location
+        loc_data = ev.get("location") or {}
+        location_name = loc_data.get("name") or ev.get("location_name") or "Unknown Venue"
+        lat = float(loc_data.get("latitude") or ev.get("latitude") or 12.97)
+        lon = float(loc_data.get("longitude") or ev.get("longitude") or 77.59)
+
+        
+        import re
+        import ast
+
+        dates_str = ev.get("dates")  # raw string from SerpAPI
+        event_time = ""
+
+        if dates_str:
+            # Remove trailing stuff like " -" or any non-dict characters
+            dates_str = re.search(r"\{.*\}", dates_str)
+            if dates_str:
+                try:
+                    # Convert string dict to actual dict
+                    dates_dict = ast.literal_eval(dates_str.group())
+                    event_time = dates_dict.get("when", "")
+                except Exception:
+                    event_time = ""
+
+        # Category
+        serp_type = ev.get("type") or ""
         category = map_event_category(serp_type, title)
 
-        # Check if event already exists
+        # Avoid duplicates
         exists = Event.query.filter_by(title=title, lat=lat, lon=lon).first()
         if not exists:
-            db.session.add(Event(title=title, lat=lat, lon=lon, category=category))
+            db.session.add(Event(
+                title=title,
+                description=description,
+                location_name=location_name,
+                lat=lat,
+                lon=lon,
+                category=category,
+                event_time=event_time
+            ))
             added_count += 1
         else:
-            # Update existing general category if new category is not general
             if exists.category == "general" and category != "general":
                 exists.category = category
-
-        # Optional: log unmapped events
-        if category == "general":
-            print(f"Unmapped event type: '{serp_type}', title: '{title}'")
+            if not exists.event_time and event_time:
+                exists.event_time = event_time
+            if not exists.location_name or exists.location_name == "Unknown Venue":
+                exists.location_name = location_name
+            if not exists.lat or not exists.lon:
+                exists.lat = lat
+                exists.lon = lon
 
     db.session.commit()
-    print(f"✅ Stored {added_count} new events from SerpAPI (total events in DB: {Event.query.count()})")
-
+    print(f"✅ Stored {added_count} new events from SerpApi (total events in DB: {Event.query.count()})")
 
 # =========================
 # MAIN
