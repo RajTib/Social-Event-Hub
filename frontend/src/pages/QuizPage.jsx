@@ -1,18 +1,18 @@
 // src/pages/QuizPage.jsx
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import Preferences from "../components/Preferences"; // adjust path if needed
+import Preferences from "../components/Preferences";
 
-const QuizPage = () => {
+const QuizPage = ({ userId, setIsLoggedIn }) => {
   const navigate = useNavigate();
 
-  // Suppose you have a logged-in user object somewhere
-  const userId = "some-user-id"; // replace with actual user ID from context/state
-
   return (
-    <Preferences 
-      userId={userId} 
-      onFinish={() => navigate("/")}  // redirect to home after saving preferences
+    <Preferences
+      userId={userId}
+      onFinish={() => {
+        setIsLoggedIn(true);
+        navigate("/home"); // go to homepage after preferences saved
+      }}
     />
   );
 };

@@ -4,9 +4,10 @@ from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
 from datetime import datetime
+from dotenv import load_dotenv
+from werkzeug.security import generate_password_hash, check_password_hash
 import openai
 import folium
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -17,7 +18,21 @@ app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///dat
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
+# =====================
 # MODELS
+# =====================
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    password_hash = db.Column(db.String(128), nullable=False)
+    name = db.Column(db.String(100))
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
@@ -29,18 +44,20 @@ class Event(db.Model):
 class Interested(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'))
-    user_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 class UserPreferences(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer)
     category = db.Column(db.String(100))
 
 
+# =====================
+# DATABASE INIT
+# =====================
 with app.app_context():
     db.create_all()
-    # seed lightweight sample events if DB empty
     if Event.query.count() == 0:
         samples = [
             {"title":"Indie Art Night", "lat":12.9716, "lon":77.5946, "category":"art"},
@@ -53,34 +70,76 @@ with app.app_context():
             db.session.add(Event(title=s["title"], lat=s["lat"], lon=s["lon"], category=s["category"]))
         db.session.commit()
 
-# simple mood -> category mapping
+
+# =====================
+# MOOD MAP
+# =====================
 MOOD_MAP = {
     "calm": ["art","meetup"],
     "energetic": ["music","workshop"],
     "anxious": ["meetup","workshop"]
 }
 
-# --- PREFERENCES ---
+
+# =====================
+# AUTH ROUTES
+# =====================
+@app.route("/api/register", methods=["POST"])
+def register():
+    data = request.json or {}
+    email = data.get("email")
+    password = data.get("password")
+    name = data.get("name")
+
+    if not email or not password or not name:
+        return jsonify({"error": "Missing fields"}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email already exists"}), 400
+
+    user = User(email=email, name=name)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+
+    return jsonify({"status": "success", "user_id": user.id})
+
+
+@app.route("/api/login", methods=["POST"])
+def login():
+    data = request.json or {}
+    email = data.get("email")
+    password = data.get("password")
+
+    user = User.query.filter_by(email=email).first()
+    if not user or not user.check_password(password):
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    return jsonify({"status": "success", "user_id": user.id})
+
+
+# =====================
+# PREFERENCES ROUTE
+# =====================
 @app.route("/api/preferences", methods=["POST"])
 def save_preferences():
     data = request.json or {}
-    user_id = data.get("user_id", "anon")
+    user_id = data.get("user_id")
     categories = data.get("categories", [])
 
-    # Delete existing preferences for this user (optional)
     UserPreferences.query.filter_by(user_id=user_id).delete()
 
-    # Save new preferences
     for cat in categories:
         pref = UserPreferences(user_id=user_id, category=cat)
         db.session.add(pref)
     
     db.session.commit()
-
-    print(f"Saved preferences for user {user_id}: {categories}")
     return jsonify({"status": "success"})
 
-# --- EVENTS ---
+
+# =====================
+# EVENTS & INTERESTED
+# =====================
 @app.route("/api/events")
 def get_events():
     mood = (request.args.get('mood') or "").lower()
@@ -97,14 +156,15 @@ def get_events():
         })
     return jsonify(out)
 
-# --- INTERESTED ---
+
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
     data = request.json or {}
     event_id = data.get("event_id")
-    user_id = data.get("user_id", "anon")
-    if not event_id:
-        return jsonify({"error":"missing event_id"}), 400
+    user_id = data.get("user_id")
+    if not event_id or not user_id:
+        return jsonify({"error":"missing data"}), 400
+
     rec = Interested(event_id=event_id, user_id=user_id)
     event = Event.query.get(event_id)
     if event:
@@ -113,7 +173,10 @@ def mark_interested():
     db.session.commit()
     return jsonify({"ok": True})
 
-# --- ICEBREAKER ---
+
+# =====================
+# ICEBREAKER
+# =====================
 @app.route("/api/icebreaker", methods=["POST"])
 def icebreaker():
     data = request.json or {}
@@ -132,13 +195,15 @@ def icebreaker():
         else:
             raise RuntimeError("no OPENAI_API_KEY set")
     except Exception as e:
-        # fallback
         text = (f"1) What's a must-watch {interest} recommendation? 🎬\n"
                 f"2) Which {interest} surprised you recently? 🤯\n"
                 f"3) Any hidden gems around here related to {interest}?")
     return jsonify({"icebreaker": text})
 
-# --- MAP ---
+
+# =====================
+# FOLIUM MAP
+# =====================
 @app.route("/map")
 def folium_map():
     events = Event.query.all()
@@ -152,10 +217,14 @@ def folium_map():
         ).add_to(m)
     return m._repr_html_()
 
-# --- HOME ---
+
+# =====================
+# HOME
+# =====================
 @app.route("/")
 def home():
     return "<h1>Backend Running!</h1>"
+
 
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)

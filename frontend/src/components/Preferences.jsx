@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 export default function Preferences({ userId, onFinish }) {
   const [selected, setSelected] = useState([]);
   const categories = ["Concerts", "Art", "Volunteering", "Gaming", "Workshops"];
+  const navigate = useNavigate();
 
   const toggleCategory = (cat) => {
     setSelected(prev => 
@@ -11,20 +13,22 @@ export default function Preferences({ userId, onFinish }) {
   };
 
   const handleSubmit = async () => {
-    try {
-      const res = await fetch("http://localhost:5000/api/preferences", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ user_id: userId, categories: selected })
-      });
-      const data = await res.json();
-      if (data.status === "success"){
-        onFinish();
-      } 
-    } catch (err) {
+  try {
+    const res = await fetch("http://localhost:5000/api/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ user_id: userId, categories: selected })
+    });
+    const data = await res.json();
+    if (data.status === "success") {
+      onFinish();            // mark user as logged in
+      navigate("/home");     // redirect to homepage 🚀
+    }
+  } catch (err) {
       console.error("Error saving preferences:", err);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-purple-200 via-pink-200 to-yellow-100">
