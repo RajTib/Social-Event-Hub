@@ -51,7 +51,7 @@ const HomePage = ({ isLoggedIn, setIsLoggedIn }) => {
       />
 
       {isLoggedIn ? (
-        <main className="flex-grow container mx-auto p-8 pt-20">
+        <main className="flex-grow container mx-auto p-8 pt-[7.5rem]">
           {/* Hero Section */}
           <section className="text-center mb-12">
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Welcome to MoodMeet</h1>
