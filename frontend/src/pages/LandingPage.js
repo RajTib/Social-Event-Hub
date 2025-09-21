@@ -10,7 +10,6 @@ const LandingPage = ({ setIsLoggedIn }) => {
   const location = useLocation();
   const [showForm, setShowForm] = useState(null);
 
-  // Show form based on navigation state
   useEffect(() => {
     if (location.state && location.state.showForm) {
       setShowForm(location.state.showForm);
@@ -19,24 +18,26 @@ const LandingPage = ({ setIsLoggedIn }) => {
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
+    localStorage.setItem('isLoggedIn', 'true');
     navigate('/home');
   };
 
   const handleRegisterSuccess = () => {
     setIsLoggedIn(true);
+    localStorage.setItem('isLoggedIn', 'true');
     navigate('/home');
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar isLoggedIn={false} setIsLoggedIn={setIsLoggedIn} />
+      <Navbar isLoggedIn={false} onLoginClick={() => setShowForm('login')} onRegisterClick={() => setShowForm('register')} />
       
-      <main className="flex-grow container mx-auto p-8 flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-12">
+      <main className="flex-grow container mx-auto p-8 pt-[7.5rem] flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-12">
         <div className="text-center md:text-left md:w-1/2">
-          <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-4 leading-tight">
+          <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-4 leading-tight animate-fade-in-down">
             Connect with your mood, not just people.
           </h1>
-          <p className="text-lg md:text-xl text-gray-600 mb-6">
+          <p className="text-lg md:text-xl text-gray-600 mb-6 animate-fade-in-down delay-200">
             MoodMeet helps you discover events and groups based on how you feel. Whether you're feeling energetic, social, or calm, find your perfect vibe and meet people who get it.
           </p>
         </div>
@@ -66,7 +67,6 @@ const LandingPage = ({ setIsLoggedIn }) => {
           )}
         </div>
       </main>
-
       <Footer />
     </div>
   );
