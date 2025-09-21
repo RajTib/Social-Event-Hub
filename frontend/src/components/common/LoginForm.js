@@ -3,12 +3,11 @@ import React, { useState } from 'react';
 const LoginForm = ({ onLogin, onSwitchToRegister }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(false); // New state for remember me
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    // You would use the 'rememberMe' state here for a real application
-    onLogin();
+    onLogin(email, password); // ← pass values here
   };
 
   return (
@@ -32,7 +31,6 @@ const LoginForm = ({ onLogin, onSwitchToRegister }) => {
           required
         />
         
-        {/* Remember Me Checkbox */}
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"

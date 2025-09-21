@@ -4,7 +4,7 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [reenterPassword, setReenterPassword] = useState(''); // New state for re-entered password
+  const [reenterPassword, setReenterPassword] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -12,7 +12,8 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
       alert("Passwords do not match!");
       return;
     }
-    onRegister();
+    // Pass the actual form values to onRegister
+    onRegister(email, password, name);
   };
 
   return (
@@ -43,8 +44,6 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
           className="w-full px-4 py-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           required
         />
-        
-        {/* Re-enter Password Field */}
         <input
           type="password"
           placeholder="Re-enter Password"
@@ -53,7 +52,6 @@ const RegisterForm = ({ onRegister, onSwitchToLogin }) => {
           className="w-full px-4 py-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           required
         />
-
         <button
           type="submit"
           className="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-indigo-700 transition"

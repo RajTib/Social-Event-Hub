@@ -1,24 +1,65 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import Navbar from '../components/common/navbar';
-import Footer from '../components/common/Footer';
-import LoginForm from '../components/common/LoginForm';
-import RegisterForm from '../components/common/RegisterForm';
+// src/pages/LandingPage.jsx
+import React, { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import Navbar from "../components/common/navbar";
+import Footer from "../components/common/Footer";
+import LoginForm from "../components/common/LoginForm";
+import RegisterForm from "../components/common/RegisterForm";
 
-const LandingPage = ({ setIsLoggedIn }) => {
+const LandingPage = ({ setIsLoggedIn, setUserId }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [showForm, setShowForm] = useState(null);
 
-  const handleLoginSuccess = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true');
-    navigate('/home'); // login goes to home
+  // Show form if navigated with state
+  useEffect(() => {
+    if (location.state && location.state.showForm) {
+      setShowForm(location.state.showForm);
+    }
+  }, [location.state]);
+
+  // --- LOGIN ---
+  const handleLoginSuccess = async (email, password) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setUserId(data.user_id);
+        setIsLoggedIn(true);
+        navigate("/home");
+      } else {
+        alert("Login failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Login error, check console");
+    }
   };
 
-  const handleRegisterSuccess = () => {
-    setIsLoggedIn(true);
-    localStorage.setItem('isLoggedIn', 'true');
-    navigate('/quiz'); // registration goes to quiz page
+  // --- REGISTER ---
+  const handleRegisterSuccess = async (email, password, name) => {
+    try {
+      const res = await fetch("http://localhost:5000/api/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, name }),
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        setUserId(data.user_id);
+        setIsLoggedIn(true);
+        navigate("/quiz");
+      } else {
+        alert("Registration failed: " + (data.error || "Unknown error"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Registration error, check console");
+    }
   };
 
   const formBackgroundClasses = showForm
@@ -29,39 +70,45 @@ const LandingPage = ({ setIsLoggedIn }) => {
     <div className="min-h-screen flex flex-col">
       <Navbar
         isLoggedIn={false}
-        onLoginClick={() => setShowForm('login')}
-        onRegisterClick={() => setShowForm('register')}
+        onLoginClick={() => setShowForm("login")}
+        onRegisterClick={() => setShowForm("register")}
       />
-      
+
       <main className="flex-grow container mx-auto p-8 pt-[7.5rem] flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-12">
         <div className="text-center md:text-left md:w-1/2">
           <h1 className="text-5xl md:text-6xl font-bold text-gray-800 mb-4 leading-tight animate-fade-in-down">
             Connect with your mood, not just people.
           </h1>
-          <p className="text-lg md:text-xl mb-6 animate-fade-in-down delay-200">
-            MoodMeet helps you discover events and groups based on how you feel. Whether you're feeling energetic, social, or calm, find your perfect vibe and meet people who get it.
+          <p className="text-lg md:text-xl text-gray-600 mb-6">
+            MoodMeet helps you discover events and groups based on how you feel.
           </p>
         </div>
 
-        <div className={`w-full md:w-1/2 flex items-center justify-center rounded-lg shadow-xl p-8 ${formBackgroundClasses}`}>
-          {showForm === 'login' ? (
-            <LoginForm 
+        <div
+          className={`w-full md:w-1/2 flex items-center justify-center rounded-lg shadow-xl p-8 ${formBackgroundClasses}`}
+        >
+          {showForm === "login" ? (
+            <LoginForm
               onLogin={handleLoginSuccess}
-              onSwitchToRegister={() => setShowForm('register')}
+              onSwitchToRegister={() => setShowForm("register")}
               textColor="text-gray-800"
             />
-          ) : showForm === 'register' ? (
+          ) : showForm === "register" ? (
             <RegisterForm
               onRegister={handleRegisterSuccess}
-              onSwitchToLogin={() => setShowForm('login')}
+              onSwitchToLogin={() => setShowForm("login")}
               textColor="text-gray-800"
             />
           ) : (
             <div className="text-center">
-              <h2 className="text-2xl font-semibold mb-4 text-white">Ready to find your tribe?</h2>
-              <p className="text-white mb-6">Join MoodMeet today and start your journey to better connections.</p>
-              <button 
-                onClick={() => setShowForm('register')}
+              <h2 className="text-2xl font-semibold mb-4 text-white">
+                Ready to find your tribe?
+              </h2>
+              <p className="text-white mb-6">
+                Join MoodMeet today and start your journey to better connections.
+              </p>
+              <button
+                onClick={() => setShowForm("register")}
                 className="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-full hover:bg-indigo-700 transition"
               >
                 Get Started
