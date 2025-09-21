@@ -2,16 +2,15 @@
 # Backend Server (Flask + SQLAlchemy)
 # ==========================================
 # Handles:
-#   - User Auth & Profiles
+#   - Auth & User Profiles
 #   - Events & Interests
-#   - User Preferences & Quiz
+#   - Preferences & Quiz
 #   - Icebreakers (AI powered)
 #   - Location + Folium Map
 # ==========================================
 
 import os
 from datetime import datetime
-
 from flask import Flask, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_cors import CORS
@@ -29,32 +28,38 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
-# Database config
-app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Database
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///data.db")
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 # File uploads
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 db = SQLAlchemy(app)
-
 
 # ==========================================
 # MODELS
 # ==========================================
 class User(db.Model):
-    """User profile and login details"""
+    """User profile & login"""
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
+
+    # Profile info
     name = db.Column(db.String(100))
-    age = db.Column(db.Integer)          
-    gender = db.Column(db.String(20))    
-    lat = db.Column(db.Float)            
-    lon = db.Column(db.Float)            
-    profile_image = db.Column(db.String(200))  
+    age = db.Column(db.Integer)
+    gender = db.Column(db.String(20))
+    dob = db.Column(db.String(20))
+    bio = db.Column(db.Text)
+    social_links = db.Column(db.Text)
+
+    # Location & profile image
+    lat = db.Column(db.Float)
+    lon = db.Column(db.Float)
+    profile_image = db.Column(db.String(200))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -64,7 +69,7 @@ class User(db.Model):
 
 
 class Event(db.Model):
-    """Event information"""
+    """Event info"""
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
     lat = db.Column(db.Float)
@@ -74,31 +79,30 @@ class Event(db.Model):
 
 
 class Interested(db.Model):
-    """Tracks user interests in events"""
+    """User marked interest in event"""
     id = db.Column(db.Integer, primary_key=True)
-    event_id = db.Column(db.Integer, db.ForeignKey('event.id'))
+    event_id = db.Column(db.Integer, db.ForeignKey("event.id"))
     user_id = db.Column(db.Integer)
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class UserPreferences(db.Model):
-    """Stores categories a user likes"""
+    """User category preferences"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer)
     category = db.Column(db.String(100))
 
 
 class UserQuizAnswer(db.Model):
-    """Stores quiz answers per user"""
+    """Quiz answers per user"""
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, nullable=False)
     question = db.Column(db.String(500))
     answer = db.Column(db.String(200))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
-
 # ==========================================
-# DATABASE INIT (Seed with sample events)
+# DATABASE INIT (seed sample events)
 # ==========================================
 with app.app_context():
     db.create_all()
@@ -108,35 +112,30 @@ with app.app_context():
             {"title": "Lo-fi Coffee Meetup", "lat": 12.9352, "lon": 77.6245, "category": "meetup"},
             {"title": "Campus Coding Jam", "lat": 12.9722, "lon": 77.5937, "category": "workshop"},
             {"title": "Open Mic - Chill Vibes", "lat": 12.9718, "lon": 77.6412, "category": "music"},
-            {"title": "Anime & Chill", "lat": 13.0358, "lon": 77.5970, "category": "anime"}
+            {"title": "Anime & Chill", "lat": 13.0358, "lon": 77.5970, "category": "anime"},
         ]
-        for s in samples:
-            db.session.add(Event(**s))
+        db.session.bulk_insert_mappings(Event, samples)
         db.session.commit()
 
-
 # ==========================================
-# MOOD MAP (Event filtering logic)
+# MOOD MAP
 # ==========================================
 MOOD_MAP = {
     "calm": ["art", "meetup"],
     "energetic": ["music", "workshop"],
-    "anxious": ["meetup", "workshop"]
+    "anxious": ["meetup", "workshop"],
 }
 
-
 # ==========================================
-# AUTH ROUTES
+# AUTH
 # ==========================================
 @app.route("/api/register", methods=["POST"])
 def register():
-    """Register new user"""
     data = request.json or {}
     email, password, name = data.get("email"), data.get("password"), data.get("name")
 
     if not email or not password or not name:
         return jsonify({"error": "Missing fields"}), 400
-
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "Email already exists"}), 400
 
@@ -144,12 +143,12 @@ def register():
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+
     return jsonify({"status": "success", "user_id": user.id})
 
 
 @app.route("/api/login", methods=["POST"])
 def login():
-    """Login user"""
     data = request.json or {}
     email, password = data.get("email"), data.get("password")
 
@@ -159,13 +158,11 @@ def login():
 
     return jsonify({"status": "success", "user_id": user.id})
 
-
 # ==========================================
-# USER PROFILE ROUTES
+# USER PROFILE
 # ==========================================
 @app.route("/api/user/<int:user_id>", methods=["GET"])
 def get_user(user_id):
-    """Fetch user profile"""
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
@@ -176,25 +173,25 @@ def get_user(user_id):
         "name": user.name,
         "age": user.age,
         "gender": user.gender,
+        "dob": user.dob,
+        "bio": user.bio,
+        "social_links": user.social_links,
         "lat": user.lat,
         "lon": user.lon,
-        "profile_image": user.profile_image
+        "profile_image": user.profile_image,
     })
 
 
 @app.route("/api/user/update", methods=["PATCH"])
 def update_user():
-    """Update user profile"""
     data = request.json or {}
     user = User.query.get(data.get("user_id"))
     if not user:
         return jsonify({"error": "User not found"}), 404
 
-    user.name = data.get("name", user.name)
-    user.age = data.get("age", user.age)
-    user.gender = data.get("gender", user.gender)
-    user.lat = data.get("lat", user.lat)
-    user.lon = data.get("lon", user.lon)
+    for field in ["name", "age", "gender", "dob", "bio", "social_links", "lat", "lon"]:
+        if field in data:
+            setattr(user, field, data[field])
 
     db.session.commit()
     return jsonify({"status": "success"})
@@ -202,7 +199,6 @@ def update_user():
 
 @app.route("/api/profile/upload", methods=["POST"])
 def upload_profile_image():
-    """Upload user profile image"""
     user_id = request.form.get("user_id")
     file = request.files.get("profile_image")
     if not file:
@@ -210,7 +206,7 @@ def upload_profile_image():
 
     filename = secure_filename(file.filename)
     filename = f"{user_id}_{int(datetime.utcnow().timestamp())}_{filename}"
-    filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
     file.save(filepath)
 
     user = User.query.get(user_id)
@@ -221,32 +217,27 @@ def upload_profile_image():
     db.session.commit()
     return {"status": "success", "profile_image": filepath}
 
-
 # ==========================================
 # PREFERENCES
 # ==========================================
 @app.route("/api/preferences", methods=["POST"])
 def save_preferences():
-    """Save user preferences"""
     data = request.json or {}
-    user_id = data.get("user_id")
-    categories = data.get("categories", [])
+    user_id, categories = data.get("user_id"), data.get("categories", [])
 
     UserPreferences.query.filter_by(user_id=user_id).delete()
-    for cat in categories:
-        db.session.add(UserPreferences(user_id=user_id, category=cat))
-    
+    db.session.bulk_insert_mappings(
+        UserPreferences, [{"user_id": user_id, "category": c} for c in categories]
+    )
     db.session.commit()
     return jsonify({"status": "success"})
-
 
 # ==========================================
 # EVENTS & INTERESTS
 # ==========================================
 @app.route("/api/events")
 def get_events():
-    """Get events, optionally filtered by mood"""
-    mood = (request.args.get('mood') or "").lower()
+    mood = (request.args.get("mood") or "").lower()
     if mood and mood in MOOD_MAP:
         events = Event.query.filter(Event.category.in_(MOOD_MAP[mood])).all()
     else:
@@ -261,7 +252,6 @@ def get_events():
 
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
-    """Mark event as 'interested' for user"""
     data = request.json or {}
     event_id, user_id = data.get("event_id"), data.get("user_id")
     if not event_id or not user_id:
@@ -276,13 +266,11 @@ def mark_interested():
     db.session.commit()
     return jsonify({"ok": True})
 
-
 # ==========================================
 # ICEBREAKER (AI)
 # ==========================================
 @app.route("/api/icebreaker", methods=["POST"])
 def icebreaker():
-    """Generate friendly icebreakers"""
     data = request.json or {}
     interest = data.get("interest", "something cool")
     prompt = (
@@ -292,16 +280,16 @@ def icebreaker():
 
     try:
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        if openai.api_key:
-            resp = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo",
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=150,
-                temperature=0.8
-            )
-            text = resp['choices'][0]['message']['content'].strip()
-        else:
+        if not openai.api_key:
             raise RuntimeError("OPENAI_API_KEY not set")
+
+        resp = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": prompt}],
+            max_tokens=150,
+            temperature=0.8,
+        )
+        text = resp["choices"][0]["message"]["content"].strip()
     except Exception:
         text = (
             f"1) What's a must-watch {interest} recommendation? 🎬\n"
@@ -311,13 +299,11 @@ def icebreaker():
 
     return jsonify({"icebreaker": text})
 
-
 # ==========================================
 # FOLIUM MAP
 # ==========================================
 @app.route("/map")
 def folium_map():
-    """Generate folium map of events"""
     events = Event.query.all()
     m = folium.Map(location=[12.97, 77.59], zoom_start=12)
     for e in events:
@@ -328,24 +314,21 @@ def folium_map():
         ).add_to(m)
     return m._repr_html_()
 
-
 # ==========================================
 # QUIZ
 # ==========================================
 @app.route("/api/quiz/questions")
 def get_quiz_questions():
-    """Return quiz questions (expandable)"""
     return jsonify([
         {"id": 1, "question": "Pick your vibe today", "options": ["Calm", "Energetic", "Anxious"]},
         {"id": 2, "question": "Choose a music genre you like", "options": ["Lo-fi", "Indie", "Electronic", "Classical"]},
         {"id": 3, "question": "Do you prefer small meetups or big events?", "options": ["Small", "Big"]},
-        {"id": 4, "question": "Favorite time of day to hang out?", "options": ["Morning", "Afternoon", "Night"]}
+        {"id": 4, "question": "Favorite time of day to hang out?", "options": ["Morning", "Afternoon", "Night"]},
     ])
 
 
 @app.route("/api/quiz/answer", methods=["POST"])
 def submit_quiz_answer():
-    """Store user answer for quiz"""
     data = request.json or {}
     user_id, question, answer = data.get("user_id"), data.get("question"), data.get("answer")
 
@@ -359,9 +342,7 @@ def submit_quiz_answer():
 
 @app.route("/api/quiz/done", methods=["POST"])
 def quiz_done():
-    """Finalize quiz for user"""
     return jsonify({"status": "finished"})
-
 
 # ==========================================
 # ROOT
@@ -369,7 +350,6 @@ def quiz_done():
 @app.route("/")
 def home():
     return "<h1>🚀 Backend Running!</h1>"
-
 
 # ==========================================
 # MAIN

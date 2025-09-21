@@ -6,18 +6,22 @@ const ProfilePage = ({ userId }) => {
   const [profileImage, setProfileImage] = useState(null);
   const [lat, setLat] = useState(null);
   const [lon, setLon] = useState(null);
+  const [updating, setUpdating] = useState(false);
+
+  // Fetch profile on load
+  const fetchProfile = async () => {
+    const res = await fetch(`http://localhost:5000/api/user/${userId}`);
+    const data = await res.json();
+    setUser(data);
+    setProfileImage(data.profile_image || null);
+    setLat(data.lat || null);
+    setLon(data.lon || null);
+  };
 
   useEffect(() => {
-    // fetch profile
-    fetch(`http://localhost:5000/api/user/${userId}`)
-      .then(res => res.json())
-      .then(data => {
-        setUser(data);
-        setLat(data.lat);
-        setLon(data.lon);
-      });
+    fetchProfile();
 
-    // auto location
+    // Auto-geolocation
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -30,9 +34,10 @@ const ProfilePage = ({ userId }) => {
   }, [userId]);
 
   const handleUpdate = async () => {
+    setUpdating(true);
     await fetch("http://localhost:5000/api/user/update", {
       method: "PATCH",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         user_id: userId,
         name: user.name,
@@ -42,7 +47,9 @@ const ProfilePage = ({ userId }) => {
         lon
       })
     });
-    alert("Profile updated!");
+    await fetchProfile(); // refresh to show updated data
+    setUpdating(false);
+    alert("Profile updated ✅");
   };
 
   const handleImageUpload = async (e) => {
@@ -57,41 +64,82 @@ const ProfilePage = ({ userId }) => {
     const data = await res.json();
     if (data.status === "success") {
       setProfileImage(data.profile_image);
-      alert("Profile image updated!");
+      alert("Profile picture updated ✅");
     }
   };
 
   return (
-    <div className="container mx-auto p-8">
-      <h1 className="text-3xl font-bold mb-6">Your Profile</h1>
+    <div className="min-h-screen bg-gradient-to-b from-purple-100 via-pink-100 to-yellow-100 flex justify-center items-center p-6">
+      <div className="bg-white rounded-3xl shadow-xl p-8 max-w-lg w-full space-y-6">
+        <h1 className="text-3xl font-bold text-center text-gray-800">Your Profile</h1>
 
-      <div className="mb-4">
-        <label>Name</label>
-        <input type="text" value={user.name || ""} onChange={(e) => setUser({...user, name: e.target.value})} />
+        {/* Profile Image */}
+        <div className="flex flex-col items-center">
+          <div className="w-32 h-32 rounded-full bg-gray-200 overflow-hidden mb-3">
+            {profileImage ? (
+              <img
+                src={`http://localhost:5000/${profileImage}`}
+                alt="Profile"
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="flex justify-center items-center h-full text-gray-500">No Image</span>
+            )}
+          </div>
+          <input
+            type="file"
+            onChange={handleImageUpload}
+            className="text-sm text-gray-600"
+          />
+        </div>
+
+        {/* Name */}
+        <div>
+          <label className="block text-gray-700 font-semibold mb-1">Name</label>
+          <input
+            type="text"
+            value={user.name || ""}
+            onChange={(e) => setUser({ ...user, name: e.target.value })}
+            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-400 outline-none"
+          />
+        </div>
+
+        {/* Age */}
+        <div>
+          <label className="block text-gray-700 font-semibold mb-1">Age</label>
+          <input
+            type="number"
+            min={14} max={100}
+            value={user.age || ""}
+            onChange={(e) => setUser({ ...user, age: e.target.value })}
+            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-400 outline-none"
+          />
+        </div>
+
+        {/* Gender */}
+        <div>
+          <label className="block text-gray-700 font-semibold mb-1">Gender</label>
+          <select
+            value={user.gender || ""}
+            onChange={(e) => setUser({ ...user, gender: e.target.value })}
+            className="w-full p-3 rounded-xl border border-gray-300 focus:ring-2 focus:ring-purple-400 outline-none"
+          >
+            <option value="">Select</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        {/* Update Button */}
+        <button
+          onClick={handleUpdate}
+          disabled={updating}
+          className="w-full bg-purple-500 text-white py-3 rounded-xl font-semibold shadow-md hover:bg-purple-600 transition"
+        >
+          {updating ? "Updating..." : "Update Profile"}
+        </button>
       </div>
-
-      <div className="mb-4">
-        <label>Age</label>
-        <input type="number" value={user.age || ""} onChange={(e) => setUser({...user, age: e.target.value})} />
-      </div>
-
-      <div className="mb-4">
-        <label>Gender</label>
-        <select value={user.gender || ""} onChange={(e) => setUser({...user, gender: e.target.value})}>
-          <option value="">Select</option>
-          <option value="Male">Male</option>
-          <option value="Female">Female</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-
-      <div className="mb-4">
-        <label>Profile Image</label>
-        <input type="file" onChange={handleImageUpload} />
-        {profileImage && <img src={`http://localhost:5000/${profileImage}`} alt="profile" className="w-32 h-32 rounded-full mt-2" />}
-      </div>
-
-      <button onClick={handleUpdate} className="bg-indigo-600 text-white px-4 py-2 rounded">Update Profile</button>
     </div>
   );
 };
