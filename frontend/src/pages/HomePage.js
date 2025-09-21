@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import Navbar from '../components/common/navbar';
 import EventCard from '../components/events/eventCard';
 import IcebreakerModal from '../components/events/IcebreakerModal';
+import Footer from '../components/common/Footer';
 
 // Hardcoded data for events and icebreakers
 const sampleEvents = [
-  { id: 1, title: 'Board Game Night', category: 'Social', matchPercentage: 84, description: 'Fun evening of board games, snacks, and making new friends.' },
-  { id: 2, title: 'Sunset Yoga in the Park', category: 'Wellness', matchPercentage: 95, description: 'Join us for a peaceful yoga session as the sun sets. Perfect for unwinding after a busy day.' },
-  { id: 3, title: 'Watercolor Painting Class', category: 'Arts', matchPercentage: 91, description: 'Learn watercolor techniques in a relaxed, encouraging atmosphere.' },
+  { id: 1, title: 'Board Game Night', category: 'Social', matchPercentage: 84, time: 'Friday, 7:00 PM', location: 'Community Center', peopleInterested: 28, description: 'Fun evening of board games, snacks, and making new friends.' },
+  { id: 2, title: 'Sunset Yoga in the Park', category: 'Wellness', matchPercentage: 95, time: 'Today, 6:00 PM', location: 'Central Park, Main Lawn', peopleInterested: 24, description: 'Join us for a peaceful yoga session as the sun sets. Perfect for unwinding after a busy day.' },
+  { id: 3, title: 'Watercolor Painting Class', category: 'Arts', matchPercentage: 91, time: 'Wednesday, 3:00 PM', location: 'Art Studio Downtown', peopleInterested: 16, description: 'Learn watercolor techniques in a relaxed, encouraging atmosphere.' },
 ];
 
 const icebreakers = {
@@ -43,9 +44,9 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar />
-      <main className="container mx-auto p-8">
+    <div className="min-h-screen flex flex-col">
+      <Navbar isLoggedIn={true} />
+      <main className="flex-grow container mx-auto p-8 pt-20">
         {/* Hero Section */}
         <section className="text-center mb-12">
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Welcome to MoodMeet</h1>
@@ -98,6 +99,7 @@ const HomePage = () => {
           onClose={handleCloseModal}
         />
       )}
+      <Footer />
     </div>
   );
 };
