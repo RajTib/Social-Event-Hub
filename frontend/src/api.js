@@ -2,11 +2,25 @@ import axios from "axios";
 
 const API_BASE = "http://127.0.0.1:5000"; // Flask backend URL
 
+// frontend/src/api.js
 export const getEvents = async (mood = "") => {
-    const url = mood ? `${API_BASE}/api/events?mood=${mood}` : `${API_BASE}/api/events`;
-    const res = await axios.get(url);
-    return res.data;
+  try {
+    let url = "http://localhost:5000/api/events";
+    if (mood) {
+      url += `?mood=${encodeURIComponent(mood)}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) {
+      throw new Error("Failed to fetch events");
+    }
+    const data = await res.json();
+    return data; // array of events
+  } catch (err) {
+    console.error("Error fetching events:", err);
+    return [];
+  }
 };
+
 
 export const markInterested = async (eventId, userId = "anon") => {
     const res = await axios.post(`${API_BASE}/api/interested`, { event_id: eventId, user_id: userId });

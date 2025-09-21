@@ -1,25 +1,34 @@
 import React, { useState } from "react";
-import { markInterested, getIcebreaker } from "../../../src/api"; // adjust path to your api.js
 
 const EventCard = ({ event }) => {
   const [peopleInterested, setPeopleInterested] = useState(event.popularity || 0);
-  const [icebreakerText, setIcebreakerText] = useState("");
+  const [icebreakers, setIcebreakers] = useState([]);
   const [isInterested, setIsInterested] = useState(false);
+  const [showIcebreakers, setShowIcebreakers] = useState(false);
 
   const handleInterestClick = async () => {
     try {
       if (!isInterested) {
-        // Mark user interested in backend
-        await markInterested(event.id, "anon"); // replace "anon" with actual user ID if available
+        // Mark interest in backend
+        await fetch("/api/interested", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ event_id: event.id, user_id: "anon" }) // replace "anon" with actual user ID
+        });
         setPeopleInterested(prev => prev + 1);
         setIsInterested(true);
       }
 
-      // Fetch icebreakers
-      const icebreakers = await getIcebreaker(event.category || "something cool");
-      setIcebreakerText(icebreakers);
+      // Fetch ALL icebreakers from backend
+      const res = await fetch("http://localhost:5000/api/icebreakers/all");
+      const data = await res.json();
+      setIcebreakers(data.icebreakers || []);
+      setShowIcebreakers(true);
+
     } catch (err) {
-      console.error("Error marking interest or fetching icebreaker:", err);
+      console.error("Error fetching icebreakers:", err);
+      setIcebreakers([]);
+      setShowIcebreakers(true);
     }
   };
 
@@ -54,10 +63,20 @@ const EventCard = ({ event }) => {
         {isInterested ? "See Icebreakers" : "I'm Interested"}
       </button>
 
-      {icebreakerText && (
+      {showIcebreakers && icebreakers.length > 0 && (
         <div className="mt-2 p-3 bg-yellow-100 rounded">
           <h4 className="font-semibold mb-1">Icebreakers:</h4>
-          <pre className="whitespace-pre-wrap">{icebreakerText}</pre>
+          <ul className="list-disc pl-5">
+            {icebreakers.map((ib, idx) => (
+              <li key={idx}>{ib}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {showIcebreakers && icebreakers.length === 0 && (
+        <div className="mt-2 p-3 bg-yellow-100 rounded text-gray-600">
+          No icebreakers available.
         </div>
       )}
     </div>

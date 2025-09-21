@@ -18,17 +18,24 @@ const HomePage = ({ isLoggedIn, setIsLoggedIn }) => {
   const [selectedEvent, setSelectedEvent] = useState(null);
 
   // Fetch events when mood changes
-  useEffect(() => {
-    const fetchEvents = async () => {
-      try {
-        const data = await getEvents(selectedMood.toLowerCase());
-        setEvents(data);
-      } catch (err) {
-        console.error("Error fetching events:", err);
-      }
-    };
-    if (isLoggedIn) fetchEvents(); // Only fetch if logged in
-  }, [selectedMood, isLoggedIn]);
+  // inside HomePage component
+useEffect(() => {
+  const fetchEvents = async () => {
+    try {
+      const data = await getEvents(selectedMood.toLowerCase());
+      setEvents(data);
+    } catch (err) {
+      console.error("Error fetching events:", err);
+      setEvents([]); // empty array if error
+    }
+  };
+
+  // Fetch events if user is logged in and a mood is selected
+  if (isLoggedIn) {
+    fetchEvents();
+  }
+}, [selectedMood, isLoggedIn]);
+
 
   const handleMoodClick = (mood) => setSelectedMood(mood);
 
@@ -82,13 +89,24 @@ const HomePage = ({ isLoggedIn, setIsLoggedIn }) => {
 
           {/* Event Feed Section */}
           <section>
-            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Event Feed</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.length > 0 ? events.map(event => (
-                <EventCard key={event.id} event={event} onInterestClick={handleInterestClick} />
-              )) : <p className="text-gray-500 col-span-3">No events for this mood yet.</p>}
-            </div>
-          </section>
+  <h2 className="text-2xl font-semibold text-gray-800 mb-6">Event Feed</h2>
+  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {events.length > 0 ? (
+      events.map(event => (
+        <EventCard 
+          key={event.id} 
+          event={event} 
+          onInterestClick={() => handleInterestClick(event)} 
+        />
+      ))
+    ) : (
+      <p className="text-gray-500 col-span-3">
+        {selectedMood ? `No events for "${selectedMood}" yet.` : "No events available."}
+      </p>
+    )}
+  </div>
+</section>
+
         </main>
       ) : (
         <div className="flex-grow flex items-center justify-center p-8 pt-20">
