@@ -65,6 +65,10 @@ const App = () => {
           path="/profile"
           element={<ProfilePage isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
         />
+        <Route
+          path="/profile"
+          element={<ProfilePage userId={userId} />}
+        />
       </Routes>
     </Router>
   );
