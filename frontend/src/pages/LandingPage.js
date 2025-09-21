@@ -1,25 +1,35 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/common/navbar';
 import Footer from '../components/common/Footer';
 import LoginForm from '../components/common/LoginForm';
 import RegisterForm from '../components/common/RegisterForm';
 
-const LandingPage = () => {
-  const [showForm, setShowForm] = useState(null);
+const LandingPage = ({ setIsLoggedIn }) => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showForm, setShowForm] = useState(null);
+
+  // Show form based on navigation state
+  useEffect(() => {
+    if (location.state && location.state.showForm) {
+      setShowForm(location.state.showForm);
+    }
+  }, [location.state]);
 
   const handleLoginSuccess = () => {
-    navigate('/home'); 
+    setIsLoggedIn(true);
+    navigate('/home');
   };
 
   const handleRegisterSuccess = () => {
-    navigate('/home'); 
+    setIsLoggedIn(true);
+    navigate('/home');
   };
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar isLoggedIn={false} onLoginClick={() => setShowForm('login')} onRegisterClick={() => setShowForm('register')} />
+      <Navbar isLoggedIn={false} setIsLoggedIn={setIsLoggedIn} />
       
       <main className="flex-grow container mx-auto p-8 flex flex-col md:flex-row items-center justify-center space-y-8 md:space-y-0 md:space-x-12">
         <div className="text-center md:text-left md:w-1/2">
@@ -30,6 +40,7 @@ const LandingPage = () => {
             MoodMeet helps you discover events and groups based on how you feel. Whether you're feeling energetic, social, or calm, find your perfect vibe and meet people who get it.
           </p>
         </div>
+
         <div className="w-full md:w-1/2 flex items-center justify-center">
           {showForm === 'login' ? (
             <LoginForm 
@@ -55,6 +66,7 @@ const LandingPage = () => {
           )}
         </div>
       </main>
+
       <Footer />
     </div>
   );
