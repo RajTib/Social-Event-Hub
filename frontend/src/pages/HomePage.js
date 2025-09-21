@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Navbar from '../components/common/Navbar';
+import Navbar from '../components/common/navbar';
 import EventCard from '../components/events/eventCard';
 import IcebreakerModal from '../components/events/IcebreakerModal';
 import Footer from '../components/common/Footer';
@@ -11,7 +11,7 @@ const moods = [
   { emoji: "🌙", label: "Calm", description: "Seeking peace" },
 ];
 
-const HomePage = () => {
+const HomePage = ({ isLoggedIn, setIsLoggedIn }) => {
   const [events, setEvents] = useState([]);
   const [selectedMood, setSelectedMood] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -27,12 +27,10 @@ const HomePage = () => {
         console.error("Error fetching events:", err);
       }
     };
-    fetchEvents();
-  }, [selectedMood]);
+    if (isLoggedIn) fetchEvents(); // Only fetch if logged in
+  }, [selectedMood, isLoggedIn]);
 
-  const handleMoodClick = (mood) => {
-    setSelectedMood(mood);
-  };
+  const handleMoodClick = (mood) => setSelectedMood(mood);
 
   const handleInterestClick = (event) => {
     setSelectedEvent(event);
@@ -46,47 +44,57 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar isLoggedIn={true} />
+      {/* Navbar with global login/logout state */}
+      <Navbar 
+        isLoggedIn={isLoggedIn} 
+        setIsLoggedIn={setIsLoggedIn} 
+      />
 
-      <main className="flex-grow container mx-auto p-8 pt-20">
-        {/* Hero Section */}
-        <section className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Welcome to MoodMeet</h1>
-          <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
-            Discover events that match your mood and connect with like-minded people in a welcoming, anxiety-free environment ✨
-          </p>
-        </section>
+      {isLoggedIn ? (
+        <main className="flex-grow container mx-auto p-8 pt-20">
+          {/* Hero Section */}
+          <section className="text-center mb-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Welcome to MoodMeet</h1>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
+              Discover events that match your mood and connect with like-minded people in a welcoming, anxiety-free environment ✨
+            </p>
+          </section>
 
-        {/* Mood Selection Section */}
-        <section className="mb-12">
-          <h2 className="text-2xl font-semibold text-gray-800 text-center mb-6">How are you feeling today?</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {moods.map((m) => (
-              <div 
-                key={m.label}
-                onClick={() => handleMoodClick(m.label)}
-                className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition cursor-pointer text-center ${
-                  selectedMood === m.label ? "border-2 border-indigo-500" : ""
-                }`}
-              >
-                <span className="text-4xl mb-2">{m.emoji}</span>
-                <h3 className="font-semibold text-lg">{m.label}</h3>
-                <p className="text-gray-500 text-sm">{m.description}</p>
-              </div>
-            ))}
-          </div>
-        </section>
+          {/* Mood Selection Section */}
+          <section className="mb-12">
+            <h2 className="text-2xl font-semibold text-gray-800 text-center mb-6">How are you feeling today?</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+              {moods.map((m) => (
+                <div 
+                  key={m.label}
+                  onClick={() => handleMoodClick(m.label)}
+                  className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition cursor-pointer text-center ${
+                    selectedMood === m.label ? "border-2 border-indigo-500" : ""
+                  }`}
+                >
+                  <span className="text-4xl mb-2">{m.emoji}</span>
+                  <h3 className="font-semibold text-lg">{m.label}</h3>
+                  <p className="text-gray-500 text-sm">{m.description}</p>
+                </div>
+              ))}
+            </div>
+          </section>
 
-        {/* Event Feed Section */}
-        <section>
-          <h2 className="text-2xl font-semibold text-gray-800 mb-6">Event Feed</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {events.length > 0 ? events.map(event => (
-              <EventCard key={event.id} event={event} onInterestClick={handleInterestClick} />
-            )) : <p className="text-gray-500 col-span-3">No events for this mood yet.</p>}
-          </div>
-        </section>
-      </main>
+          {/* Event Feed Section */}
+          <section>
+            <h2 className="text-2xl font-semibold text-gray-800 mb-6">Event Feed</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.length > 0 ? events.map(event => (
+                <EventCard key={event.id} event={event} onInterestClick={handleInterestClick} />
+              )) : <p className="text-gray-500 col-span-3">No events for this mood yet.</p>}
+            </div>
+          </section>
+        </main>
+      ) : (
+        <div className="flex-grow flex items-center justify-center p-8 pt-20">
+          <p className="text-xl text-gray-700">Please log in to see events.</p>
+        </div>
+      )}
 
       {/* Icebreaker Modal */}
       {isModalOpen && selectedEvent && (

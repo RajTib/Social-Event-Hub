@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { markInterested, getIcebreaker } from "../../src/api"; // adjust path to your api.js
+import { markInterested, getIcebreaker } from "../../../src/api"; // adjust path to your api.js
 
 const EventCard = ({ event }) => {
   const [peopleInterested, setPeopleInterested] = useState(event.popularity || 0);
