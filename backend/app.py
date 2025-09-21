@@ -9,7 +9,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import openai
 import folium
 
-load_dotenv()
+load_dotenv()   
 
 app = Flask(__name__)
 CORS(app)
