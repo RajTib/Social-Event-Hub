@@ -32,6 +32,12 @@ class Interested(db.Model):
     user_id = db.Column(db.String(100))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+class UserPreferences(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.String(100))
+    category = db.Column(db.String(100))
+
+
 with app.app_context():
     db.create_all()
     # seed lightweight sample events if DB empty
@@ -54,6 +60,27 @@ MOOD_MAP = {
     "anxious": ["meetup","workshop"]
 }
 
+# --- PREFERENCES ---
+@app.route("/api/preferences", methods=["POST"])
+def save_preferences():
+    data = request.json or {}
+    user_id = data.get("user_id", "anon")
+    categories = data.get("categories", [])
+
+    # Delete existing preferences for this user (optional)
+    UserPreferences.query.filter_by(user_id=user_id).delete()
+
+    # Save new preferences
+    for cat in categories:
+        pref = UserPreferences(user_id=user_id, category=cat)
+        db.session.add(pref)
+    
+    db.session.commit()
+
+    print(f"Saved preferences for user {user_id}: {categories}")
+    return jsonify({"status": "success"})
+
+# --- EVENTS ---
 @app.route("/api/events")
 def get_events():
     mood = (request.args.get('mood') or "").lower()
@@ -70,6 +97,7 @@ def get_events():
         })
     return jsonify(out)
 
+# --- INTERESTED ---
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
     data = request.json or {}
@@ -85,6 +113,7 @@ def mark_interested():
     db.session.commit()
     return jsonify({"ok": True})
 
+# --- ICEBREAKER ---
 @app.route("/api/icebreaker", methods=["POST"])
 def icebreaker():
     data = request.json or {}
@@ -109,10 +138,10 @@ def icebreaker():
                 f"3) Any hidden gems around here related to {interest}?")
     return jsonify({"icebreaker": text})
 
+# --- MAP ---
 @app.route("/map")
 def folium_map():
     events = Event.query.all()
-    # default center: average or a fixed point
     start_loc = [12.97, 77.59]
     m = folium.Map(location=start_loc, zoom_start=12)
     for e in events:
@@ -123,6 +152,7 @@ def folium_map():
         ).add_to(m)
     return m._repr_html_()
 
+# --- HOME ---
 @app.route("/")
 def home():
     return "<h1>Backend Running!</h1>"

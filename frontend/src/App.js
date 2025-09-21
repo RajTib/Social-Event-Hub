@@ -5,13 +5,14 @@ import HomePage from './pages/HomePage';
 import MapPage from './pages/MapPage';
 import MyEventsPage from './pages/MyEventsPage';
 import ProfilePage from './pages/ProfilePage';
+import QuizPage from './pages/QuizPage';
 import Navbar from './components/common/navbar';
 import './index.css';
 
-const App = () => {
-  // Global login state
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-
+const App = () => { 
+  // Global login state 
+  const [isLoggedIn, setIsLoggedIn] = useState(false); 
+ 
   return (
     <Router>
       {/* Navbar always receives global login state */}
@@ -21,6 +22,10 @@ const App = () => {
         <Route 
           path="/" 
           element={<LandingPage isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />} 
+        />
+        <Route 
+          path="/quiz" 
+          element={<QuizPage />}  // Added quiz route
         />
         <Route 
           path="/home" 
@@ -36,7 +41,7 @@ const App = () => {
         />
         <Route 
           path="/profile" 
-          element={<ProfilePage isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />} 
+          element={<ProfilePage isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />}
         />
       </Routes>
     </Router>

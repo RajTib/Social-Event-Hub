@@ -18,7 +18,9 @@ export default function Preferences({ userId, onFinish }) {
         body: JSON.stringify({ user_id: userId, categories: selected })
       });
       const data = await res.json();
-      if (data.status === "success") onFinish();
+      if (data.status === "success"){
+        onFinish();
+      } 
     } catch (err) {
       console.error("Error saving preferences:", err);
     }
