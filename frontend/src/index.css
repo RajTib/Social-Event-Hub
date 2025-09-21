@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* MoodMeet Design System - Calming, welcoming colors and gradients */
+
+@layer base {
+  :root {
+    /* Calming background gradients */
+    --background: 25 100% 97%;
+    --background-soft: 220 100% 98%;
+    --foreground: 220 15% 25%;
+
+    /* Warm, welcoming card system */
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 25%;
+    --card-soft: 25 50% 96%;
+
+    /* Popover styling */
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 25%;
+
+    /* Mood-based color palette */
+    --primary: 260 75% 70%;
+    --primary-soft: 260 60% 85%;
+    --primary-foreground: 0 0% 100%;
+
+    /* Gentle secondary tones */
+    --secondary: 25 75% 85%;
+    --secondary-soft: 25 50% 92%;
+    --secondary-foreground: 220 15% 35%;
+
+    /* Subtle muted tones */
+    --muted: 220 30% 92%;
+    --muted-foreground: 220 15% 55%;
+
+    /* Calming accent colors */
+    --accent: 160 60% 80%;
+    --accent-soft: 160 40% 90%;
+    --accent-foreground: 220 15% 25%;
+
+    /* Non-aggressive destructive */
+    --destructive: 0 65% 75%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Soft borders and inputs */
+    --border: 220 25% 88%;
+    --border-soft: 220 15% 94%;
+    --input: 220 25% 94%;
+    --ring: 260 75% 70%;
+
+    /* Generous radius for friendliness */
+    --radius: 1rem;
+
+    /* Beautiful gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(260 75% 70%), hsl(280 70% 75%));
+    --gradient-secondary: linear-gradient(135deg, hsl(25 75% 85%), hsl(35 70% 88%));
+    --gradient-background: linear-gradient(135deg, hsl(25 100% 97%), hsl(220 100% 98%));
+    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(25 50% 96%));
+    --gradient-mood: linear-gradient(135deg, hsl(160 60% 80%), hsl(180 55% 85%));
+
+    /* Smooth transitions */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-gentle: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+
+    /* Welcoming shadows */
+    --shadow-card: 0 4px 20px -4px hsl(220 25% 80% / 0.3);
+    --shadow-floating: 0 8px 32px -8px hsl(220 25% 70% / 0.4);
+    --shadow-mood: 0 6px 24px -6px hsl(260 75% 70% / 0.3);
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-gradient-to-br from-background to-background-soft text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+}
+
+@layer components {
+  .mood-card {
+    @apply bg-gradient-to-br from-card to-card-soft rounded-2xl p-6 shadow-[var(--shadow-card)] 
+           border border-border-soft transition-[var(--transition-gentle)] 
+           hover:shadow-[var(--shadow-floating)] hover:scale-[1.02];
+  }
+  
+  .mood-selector {
+    @apply bg-gradient-to-br from-primary to-primary-soft text-primary-foreground rounded-xl p-4 
+           shadow-[var(--shadow-mood)] transition-[var(--transition-smooth)] 
+           hover:scale-[1.05] active:scale-[0.98] cursor-pointer;
+  }
+  
+  .event-card {
+    @apply bg-gradient-to-br from-card to-card-soft rounded-xl p-4 border border-border-soft 
+           shadow-[var(--shadow-card)] transition-[var(--transition-gentle)] 
+           hover:shadow-[var(--shadow-floating)] hover:-translate-y-1;
+  }
+  
+  .btn-primary {
+    @apply bg-gradient-to-r from-primary to-primary-soft text-primary-foreground rounded-xl px-6 py-3 
+           font-medium shadow-[var(--shadow-mood)] transition-[var(--transition-smooth)] 
+           hover:scale-[1.05] active:scale-[0.98] border-0;
+  }
+  
+  .btn-secondary {
+    @apply bg-gradient-to-r from-secondary to-secondary-soft text-secondary-foreground rounded-xl px-6 py-3 
+           font-medium shadow-[var(--shadow-card)] transition-[var(--transition-smooth)] 
+           hover:scale-[1.05] active:scale-[0.98] border-0;
+  }
+  
+  .btn-mood {
+    @apply bg-gradient-to-r from-accent to-accent-soft text-accent-foreground rounded-full px-4 py-2 
+           text-sm font-medium transition-[var(--transition-smooth)] 
+           hover:scale-[1.1] active:scale-[0.95] border-0;
+  }
+}
