@@ -1,14 +1,14 @@
 import React from 'react';
 import Navbar from '../components/common/navbar';
-import Footer from '../components/common/Footer'; // Import the Footer
+import Footer from '../components/common/Footer';
 
-const ProfilePage = () => {
+const ProfilePage = ({ isLoggedIn, setIsLoggedIn }) => {
   return (
     <div className="min-h-screen flex flex-col">
-      <Navbar isLoggedIn={true} />
-      <main className="flex-grow container mx-auto p-8 text-center">
+      <Navbar isLoggedIn={isLoggedIn} setIsLoggedIn={setIsLoggedIn} />
+      <main className="flex-grow container mx-auto p-8 pt-[7.5rem] text-center">
         <h1 className="text-4xl font-bold">Profile Page</h1>
-        <p className="text-lg text-gray-600 mt-4">Your personal profile and settings will go here.</p>
+        <p className="text-lg text-gray-600 mt-4">This is where you'll be able to view and edit your profile.</p>
       </main>
       <Footer />
     </div>
