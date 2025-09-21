@@ -7,13 +7,16 @@ from datetime import datetime
 import openai
 import folium
 from dotenv import load_dotenv
+from serpapi import GoogleSearch
 
+# Load environment variables
 load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 # DATABASE
+# Use DATABASE_URL from .env; fallback to SQLite if missing
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False    
 db = SQLAlchemy(app)
@@ -27,6 +30,9 @@ class User(db.Model):
     email = db.Column(db.String(150), unique=True)
     city = db.Column(db.String(100))
     interests = db.Column(db.ARRAY(db.String))
+    age = db.Column(db.Integer)
+    gender = db.Column(db.String(20))
+    location = db.Column(db.String(100))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
@@ -61,24 +67,6 @@ class UserEventLog(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 # =========================
-# INITIALIZATION
-# =========================
-with app.app_context():
-    db.create_all()
-    # seed lightweight sample events if DB empty
-    if Event.query.count() == 0:
-        samples = [
-            {"title":"Indie Art Night", "lat":12.9716, "lon":77.5946, "category":"art"},
-            {"title":"Lo-fi Coffee Meetup", "lat":12.9352, "lon":77.6245, "category":"meetup"},
-            {"title":"Campus Coding Jam", "lat":12.9722, "lon":77.5937, "category":"workshop"},
-            {"title":"Open Mic - Chill Vibes", "lat":12.9718, "lon":77.6412, "category":"music"},
-            {"title":"Anime & Chill", "lat":13.0358, "lon":77.5970, "category":"anime"}
-        ]
-        for s in samples:
-            db.session.add(Event(title=s["title"], lat=s["lat"], lon=s["lon"], category=s["category"]))
-        db.session.commit()
-
-# =========================
 # Mood -> Category mapping
 # =========================
 MOOD_MAP = {
@@ -103,6 +91,7 @@ def get_events():
         events = Event.query.filter(Event.category.in_(cats)).all()
     else:
         events = Event.query.all()
+
     out = []
     for e in events:
         out.append({
@@ -131,6 +120,29 @@ def add_user():
     db.session.commit()
     return jsonify({"ok": True, "user_id": user.id})
 
+# ---------- USER QUIZ ----------
+@app.route("/api/users/quiz", methods=["POST"])
+def user_quiz():
+    data = request.json or {}
+    user_id = data.get("user_id")
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+
+    try:
+        user.age = int(data.get("age", user.age))
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid age"}), 400
+
+    user.gender = str(data.get("gender", user.gender))
+    user.city = str(data.get("city", user.city))
+    interests = data.get("interests")
+    if isinstance(interests, list):
+        user.interests = interests
+
+    db.session.commit()
+    return jsonify({"ok": True})
+
 # ---------- INTEREST ----------
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
@@ -143,7 +155,6 @@ def mark_interested():
     event = Event.query.get(event_id)
     if event:
         event.popularity = (event.popularity or 0) + 1
-    # log user action
     log = UserEventLog(user_id=user_id, event_id=event_id, action="clicked_interested")
     db.session.add_all([rec, log])
     db.session.commit()
@@ -168,7 +179,6 @@ def icebreaker():
         else:
             raise RuntimeError("no OPENAI_API_KEY set")
     except Exception:
-        # fallback
         text = (f"1) What's a must-watch {interest} recommendation? 🎬\n"
                 f"2) Which {interest} surprised you recently? 🤯\n"
                 f"3) Any hidden gems around here related to {interest}?")
@@ -189,7 +199,52 @@ def folium_map():
     return m._repr_html_()
 
 # =========================
+# FETCH EVENTS FROM SERPAPI
+# =========================
+def fetch_serpapi_events(location="Bangalore", num_events=10):
+    serpapi_key = os.getenv("SERPAPI_API_KEY")
+    if not serpapi_key:
+        print("No SERPAPI_API_KEY set in .env")
+        return
+
+    params = {
+        "engine": "google_events",
+        "q": "events",
+        "location": location,
+        "hl": "en",
+        "api_key": serpapi_key
+    }
+
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    events = results.get("events_results", [])
+    for ev in events[:num_events]:
+        title = ev.get("title")
+        lat = ev.get("latitude") or 12.97
+        lon = ev.get("longitude") or 77.59
+        category = ev.get("type") or "general"
+        exists = Event.query.filter_by(title=title, lat=lat, lon=lon).first()
+        if not exists:
+            new_event = Event(
+                title=title,
+                lat=lat,
+                lon=lon,
+                category=category,
+                popularity=0,
+                created_by=None
+            )
+            db.session.add(new_event)
+    db.session.commit()
+
+# =========================
 # MAIN
 # =========================
 if __name__ == "__main__":
+    with app.app_context():
+        db.create_all()
+        try:
+            fetch_serpapi_events(location="Bangalore", num_events=20)
+        except Exception as e:
+            print("SerpApi fetch failed:", e)
+
     app.run(debug=True, host="0.0.0.0", port=5000)
