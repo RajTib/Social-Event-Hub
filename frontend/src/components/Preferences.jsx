@@ -1,7 +1,9 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Preferences({ userId, onFinish }) {
+export default function Preferences({ userId }) {
   const [selected, setSelected] = useState([]);
+  const navigate = useNavigate();
   const categories = ["Concerts", "Art", "Volunteering", "Gaming", "Workshops"];
 
   const toggleCategory = (cat) => {
@@ -19,7 +21,8 @@ export default function Preferences({ userId, onFinish }) {
       });
       const data = await res.json();
       if (data.status === "success"){
-        onFinish();
+        // Redirect to HomePage after saving preferences
+        navigate("/home");
       } 
     } catch (err) {
       console.error("Error saving preferences:", err);
