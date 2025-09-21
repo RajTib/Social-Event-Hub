@@ -11,3 +11,7 @@ node_modules/
 
 # Local DB
 backend/instance/data.db
+
+.env
+
+

@@ -13,11 +13,23 @@ load_dotenv()
 app = Flask(__name__)
 CORS(app)
 
+# DATABASE
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False    
 db = SQLAlchemy(app)
 
-# MODELS
+# =========================
+# DATABASE MODELS
+# =========================
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    email = db.Column(db.String(150), unique=True)
+    city = db.Column(db.String(100))
+    interests = db.Column(db.ARRAY(db.String))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(200))
@@ -25,13 +37,32 @@ class Event(db.Model):
     lon = db.Column(db.Float)
     category = db.Column(db.String(100))
     popularity = db.Column(db.Integer, default=0)
+    created_by = db.Column(db.Integer, db.ForeignKey('user.id'))
+
 
 class Interested(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'))
-    user_id = db.Column(db.String(100))
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     timestamp = db.Column(db.DateTime, default=datetime.utcnow)
 
+
+class Icebreaker(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    question = db.Column(db.Text, nullable=False)
+    category = db.Column(db.String(100))
+
+
+class UserEventLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'))
+    action = db.Column(db.String(50))  # "viewed", "clicked_interested"
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# =========================
+# INITIALIZATION
+# =========================
 with app.app_context():
     db.create_all()
     # seed lightweight sample events if DB empty
@@ -47,13 +78,23 @@ with app.app_context():
             db.session.add(Event(title=s["title"], lat=s["lat"], lon=s["lon"], category=s["category"]))
         db.session.commit()
 
-# simple mood -> category mapping
+# =========================
+# Mood -> Category mapping
+# =========================
 MOOD_MAP = {
     "calm": ["art","meetup"],
     "energetic": ["music","workshop"],
     "anxious": ["meetup","workshop"]
 }
 
+# =========================
+# ROUTES
+# =========================
+@app.route("/")
+def home():
+    return "<h1>Backend Running!</h1>"
+
+# ---------- EVENTS ----------
 @app.route("/api/events")
 def get_events():
     mood = (request.args.get('mood') or "").lower()
@@ -65,26 +106,50 @@ def get_events():
     out = []
     for e in events:
         out.append({
-            "id": e.id, "title": e.title, "lat": e.lat, "lon": e.lon,
-            "category": e.category, "popularity": e.popularity
+            "id": e.id,
+            "title": e.title,
+            "lat": e.lat,
+            "lon": e.lon,
+            "category": e.category,
+            "popularity": e.popularity
         })
     return jsonify(out)
 
+# ---------- USER ----------
+@app.route("/api/users", methods=["POST"])
+def add_user():
+    data = request.json or {}
+    if not data.get("name") or not data.get("email"):
+        return jsonify({"error":"Name and Email required"}), 400
+    user = User(
+        name=data["name"],
+        email=data["email"],
+        city=data.get("city"),
+        interests=data.get("interests", [])
+    )
+    db.session.add(user)
+    db.session.commit()
+    return jsonify({"ok": True, "user_id": user.id})
+
+# ---------- INTEREST ----------
 @app.route("/api/interested", methods=["POST"])
 def mark_interested():
     data = request.json or {}
     event_id = data.get("event_id")
-    user_id = data.get("user_id", "anon")
-    if not event_id:
-        return jsonify({"error":"missing event_id"}), 400
+    user_id = data.get("user_id")
+    if not event_id or not user_id:
+        return jsonify({"error":"missing event_id or user_id"}), 400
     rec = Interested(event_id=event_id, user_id=user_id)
     event = Event.query.get(event_id)
     if event:
         event.popularity = (event.popularity or 0) + 1
-    db.session.add(rec)
+    # log user action
+    log = UserEventLog(user_id=user_id, event_id=event_id, action="clicked_interested")
+    db.session.add_all([rec, log])
     db.session.commit()
     return jsonify({"ok": True})
 
+# ---------- ICEBREAKERS ----------
 @app.route("/api/icebreaker", methods=["POST"])
 def icebreaker():
     data = request.json or {}
@@ -102,17 +167,17 @@ def icebreaker():
             text = resp['choices'][0]['message']['content'].strip()
         else:
             raise RuntimeError("no OPENAI_API_KEY set")
-    except Exception as e:
+    except Exception:
         # fallback
         text = (f"1) What's a must-watch {interest} recommendation? 🎬\n"
                 f"2) Which {interest} surprised you recently? 🤯\n"
                 f"3) Any hidden gems around here related to {interest}?")
     return jsonify({"icebreaker": text})
 
+# ---------- MAP ----------
 @app.route("/map")
 def folium_map():
     events = Event.query.all()
-    # default center: average or a fixed point
     start_loc = [12.97, 77.59]
     m = folium.Map(location=start_loc, zoom_start=12)
     for e in events:
@@ -123,9 +188,8 @@ def folium_map():
         ).add_to(m)
     return m._repr_html_()
 
-@app.route("/")
-def home():
-    return "<h1>Backend Running!</h1>"
-
+# =========================
+# MAIN
+# =========================
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5000)
